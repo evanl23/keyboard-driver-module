@@ -27,8 +27,9 @@ static void * default_dev_id;
 /* initialize a queue for */
 static struct workqueue_struct *my_workqueue;
 
-/* initialize state savers for shift key modifier */
+/* initialize state savers for shift key modifier and key_release */
 int shift_pressed = 0;
+static int key_release = 0;
 
 /* global static for storing last read key */
 static char last_key;
@@ -115,6 +116,7 @@ static void got_char(struct work_struct *work)
         last_key = c;
         my_printk(&last_key);
       }
+      key_release = 1;
       printk(KERN_INFO "Scan Code %x %s.\n",
 	       code & 0x7F,
 	       (code & 0x80) ? "Released" : "Pressed"); 
@@ -220,10 +222,11 @@ static int keyboard_ioctl(struct inode *inode, struct file *file,
   switch (cmd) {
 
   case KEYBOARD_IOCTL:
-
-    copy_to_user((char __user *)arg, &last_key, sizeof(last_key)); /* copy to the user the character picked up from got_char */
-    printk("ioctl: call to KEYBOARD_IOCTL (%c)!\n", last_key);
-
+    if (key_release == 1) {
+      copy_to_user((char __user *)arg, &last_key, sizeof(last_key)); /* copy to the user the character picked up from got_char */
+      key_release = 0;
+      printk("ioctl: call to KEYBOARD_IOCTL (%c)!\n", last_key);
+    }
     break;
   
   default:
